@@ -1,44 +1,368 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  bookoftheday
-  
-  Sample SAM Template for bookoftheday
+  Book of the day email list.
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 5
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  # API Gateway Proxy Integration for PUT /subscribe
+  SubscribeToLists:
+    Type: AWS::Serverless::Function
     Properties:
-      CodeUri: hello-world/
-      Handler: hello-world
+      CodeUri: handlers/subscribe/
+      Handler: subscribe
       Runtime: go1.x
       Architectures:
         - x86_64
       Events:
-        CatchAll:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        ApiEvent:
+          Type: HttpApi
           Properties:
-            Path: /hello
+            ApiId: !Ref PublicHttpApi
+            Path: /subscribe
+            Method: PUT
+      Policies:
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ses:CreateContact
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:contact-list/jtaylorsoftwareContactList"
+
+  # API Gateway Proxy Integration for GET /lists
+  GetLists:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/lists/
+      Handler: lists
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicHttpApi
+            Path: /lists
             Method: GET
-      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BestSellerListsTable
+
+  # EventBridge Rule Integration for refreshing the available best seller lists
+  ScheduledRefreshLists:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/refresh-lists/
+      Handler: refresh-lists
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BestSellerListsTable
+
+  # API Gateway Proxy Integration for GET /books?list={list}&date={date}
+  #   Returns the "book of the day" for a given Best Seller list.
+  #   If the date is specified, narrows down to one date. If not specified,
+  #   The last month of books of the day.
+  BookOfTheDayForList:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/books/
+      Handler: books
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicHttpApi
+            Path: /books
+            Method: GET
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref BooksTable
+
+  # EventBridge Rule Integration for generating the random book for each list
+  GenerateRandomBooks:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/random-book/
+      Handler: random-book
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BooksTable
+
+  # End function of state machine that reads from the contact list,
+  # pairs them with a book, and sends to SQS (BookEmailQueue).
+  ReadContacts:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/contacts/
+      Handler: contacts
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt BookEmailQueue.QueueName
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ses:ListContacts
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:contact-list/jtaylorsoftwareContactList"
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource:
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/BooksListConfigSet"
+      Environment:
         Variables:
-          PARAM1: VALUE
+          CONTACT_LIST_NAME: jtaylorsoftwareContactList
+          TOPIC_NAME: Books
+
+  # HTTP API for access to public endpoints
+  # - PUT /subscribe
+  # - GET /books?list={list}
+  # - GET /lists
+  PublicHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowHeaders: "*"
+        AllowMethods: "*"
+        AllowOrigins:
+          - "*"
+
+  # Table that stores retrieved lists
+  BestSellerListsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: BestSellerLists
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        # Key Attributes
+        - AttributeName: EncodedName
+          AttributeType: S
+        # The following Attributes are for documentation purposes:
+        # - AttributeName: Name
+        #   AttributeType: S
+        # - AttributeName: DisplayName
+        #   AttributeType: S
+        # - AttributeName: OldestDate
+        #   AttributeType: S
+        # - AttributeName: NewestDate
+        #   AttributeType: S
+        # - AttributeName: UpdatePeriod
+        #   AttributeType: S
+      KeySchema:
+        - AttributeName: EncodedName
+          KeyType: "HASH"
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # Table that stores randomized book of the day for each list.
+  # Has TTL enabled, books can go back by a month (maybe approximately).
+  BooksTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: Books
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        # Key Attributes
+        - AttributeName: ListEncodedName
+          AttributeType: S
+        - AttributeName: Date # Date book was randomly selected for email list
+          AttributeType: S
+        # The following Attributes are for documentation purposes:
+        # - AttributeName: ListDisplayName
+        #   AttributeType: S
+        # - AttributeName: ListPublishedDate
+        #   AttributeType: S
+        # - AttributeName: ListUpdatePeriod
+        #   AttributeType: S
+        # - AttributeName: PrimaryISBN10
+        #   AttributeType: S
+        # - AttributeName: PrimaryISBN13
+        #   AttributeType: S
+        # - AttributeName: Title
+        #   AttributeType: S
+        # - AttributeName: Author
+        #   AttributeType: S
+        # - AttributeName: Rank
+        #   AttributeType: "N"
+        # - AttributeName: AmazonProductURL
+        #   AttributeType: S
+        # - AttributeName: Description
+        #   AttributeType: S
+        # - AttributeName: ImageURL
+        #   AttributeType: S
+        # - AttributeName: ImageWidth
+        #   AttributeType: "N"
+        # - AttributeName: ImageHeight
+        #   AttributeType: "N"
+        # - AttributeName: Expiration # TTL Attribute
+        #   AttributeType: "N"
+      KeySchema:
+        - AttributeName: ListEncodedName
+          KeyType: "HASH"
+        - AttributeName: Date
+          KeyType: "RANGE"
+      TimeToLiveSpecification:
+        AttributeName: Expiration
+        Enabled: true
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # Queue that will be sent payloads containing a contact and their book
+  BookEmailQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    Properties:
+      QueueName: BookEmailQueue
+      KmsMasterKeyId: alias/aws/sqs
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # Scheduled EventBridge event to trigger the daily email service.
+  ScheduledBookEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Book of the day scheduled event"
+      Name: BookOfTheDayEvent
+      ScheduleExpression: "cron(0 0 * * ? *)" # Every day at 12AM UTC+0
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt StateMachine.Arn
+          Id: ScheduledBookEventStartState
+          RoleArn: !GetAtt ScheduledBookEventRole.Arn
+
+  ScheduledBookEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowEventBridgeToTriggerStep
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref StateMachine
+
+  # Scheduled EventBridge event to trigger the periodic lists refresh.
+  ScheduledRefreshListsEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Scheduled lists refresh"
+      Name: RefreshListsEvent
+      ScheduleExpression: "cron(0 0/12 * * ? *)" # Every 12 hours every day
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ScheduledRefreshLists.Arn
+          Id: RefreshListsTargetRandomBook
+
+  ScheduledRefreshListsEventPermToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScheduledRefreshLists
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduledRefreshListsEventRule.Arn
+
+  # DLQ for when getting a random book fails.
+  RandomBookDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    Properties:
+      QueueName: RandomBookDLQ
+      KmsMasterKeyId: alias/aws/sqs
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # DLQ for when sending an email fails
+  SendEmailDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    Properties:
+      QueueName: SendEmailDLQ
+      KmsMasterKeyId: alias/aws/sqs
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # Role for state machine to execute lambdas and send to SQS.
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StateMachineExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt GetLists.Arn
+                  - !GetAtt GenerateRandomBooks.Arn
+                  - !GetAtt ReadContacts.Arn
+              - Effect: "Allow"
+                Action:
+                  - sqs:SendMessage
+                Resource:
+                  - !GetAtt RandomBookDLQ.Arn
+
+  StateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/event-sm.asl.yaml
+      DefinitionSubstitutions:
+        GetListsFunction: !GetAtt GetLists.Arn
+        RandomBookFunction: !GetAtt GenerateRandomBooks.Arn
+        BookDLQURL: !Ref RandomBookDLQ
+        ReadContactsFunction: !GetAtt ReadContacts.Arn
+      Role: !GetAtt StateMachineRole.Arn
+      Tracing:
+        Enabled: true
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldAPI:
-    Description: "API Gateway endpoint URL for Prod environment for First Function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "First Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  BookOfTheDayApi:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub
+      - "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/"
+      - Api: !Ref PublicHttpApi

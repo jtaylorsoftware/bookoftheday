@@ -1,0 +1,67 @@
+Comment: |
+  State machine to generate random book for each Best Seller list.
+StartAt: GetLists
+States:
+  GetLists:
+    Type: Task
+    Resource: ${GetListsFunction}
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException 
+          - Lambda.Unknown
+        IntervalSeconds: 2
+        MaxAttempts: 2
+        BackoffRate: 2
+    Next: MapListToBook
+  MapListToBook:
+    Type: Map
+    Iterator:
+      StartAt: GetRandomBook
+      States:
+        GetRandomBook:
+          Type: Task
+          Resource: ${RandomBookFunction}
+          Retry:
+            - ErrorEquals:
+                - Lambda.ServiceException
+                - Lambda.AWSLambdaException
+                - Lambda.SdkClientException
+                - Lambda.Unknown
+              IntervalSeconds: 5
+              MaxAttempts: 2
+              BackoffRate: 2
+              Comment: Retry getting book on errors
+          Catch:
+            - ErrorEquals:
+                - Lambda.Unknown
+                - Lambda.ServiceException
+                - Lambda.SdkClientException
+                - Lambda.AWSLambdaException
+              Comment: Send list to DLQ if retry impossible
+              Next: SendToBookDLQ
+          TimeoutSeconds: 10
+          End: true
+        SendToBookDLQ:
+          Type: Task
+          Resource: 'arn:aws:states:::sqs:sendMessage'
+          Parameters:
+            MessageBody.$: $
+            QueueUrl: '${BookDLQURL}'
+          End: true
+    Next: ReadContacts
+    MaxConcurrency: 5
+  ReadContacts:
+    Type: Task
+    Resource: ${ReadContactsFunction}
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.Unknown
+        IntervalSeconds: 5
+        MaxAttempts: 2
+        BackoffRate: 2
+    End: true
