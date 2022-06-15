@@ -196,9 +196,9 @@ Resources:
         #   AttributeType: S
         # - AttributeName: DisplayName
         #   AttributeType: S
-        # - AttributeName: OldestDate
+        # - AttributeName: OldestPublishedDate
         #   AttributeType: S
-        # - AttributeName: NewestDate
+        # - AttributeName: NewestPublishedDate
         #   AttributeType: S
         # - AttributeName: UpdatePeriod
         #   AttributeType: S
