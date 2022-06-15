@@ -59,12 +59,12 @@ func TestRequests(t *testing.T) {
 
 		want := make([]BestSellerList, 1)
 		want[0] = BestSellerList{
-			ListName:            "Fiction",
+			Name:                "Fiction",
 			DisplayName:         "Fiction",
-			ListNameEncoded:     "fiction",
+			EncodedName:         "fiction",
 			OldestPublishedDate: "2022-06-14",
 			NewestPublishedDate: "2022-06-14",
-			Updated:             "WEEKLY",
+			UpdatePeriod:        "WEEKLY",
 		}
 
 		if !reflect.DeepEqual(got, want) {

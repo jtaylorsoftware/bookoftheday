@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"refresh-lists/internal/books"
@@ -33,12 +32,12 @@ func main() {
 	if err != nil {
 		log.Fatalln("could not get SSM parameter: " + err.Error())
 	}
-	fmt.Printf("api key: %s\n", *gpOutput.Parameter.Value)
+
 	api := books.NewNYTBooksAPI(*gpOutput.Parameter.Value, "https://api.nytimes.com/svc/books/v3/lists/names.json")
 
 	ddbClient := dynamodb.NewFromConfig(cfg)
 
-	h = handler.New(api, ddbClient)
+	h = handler.New(api, os.Getenv("LISTS_TABLE_NAME"), ddbClient)
 
 	lambda.Start(h.RefreshBestSellerLists)
 }
