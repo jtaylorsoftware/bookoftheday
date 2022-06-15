@@ -1,0 +1,10 @@
+go 1.18
+
+use (
+	./handlers/books
+	./handlers/contacts
+	./handlers/lists
+	./handlers/random-book
+	./handlers/refresh-lists
+	./handlers/subscribe
+)
