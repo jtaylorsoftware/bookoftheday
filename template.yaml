@@ -32,6 +32,9 @@ Resources:
                 - ses:CreateContact
               Resource:
                 - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:contact-list/jtaylorsoftwareContactList"
+      Environment:
+        Variables:
+          CONTACT_LIST_NAME: jtaylorsoftwareContactList
 
   # API Gateway Proxy Integration for GET /lists
   GetLists:
@@ -52,6 +55,9 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref BestSellerListsTable
+      Environment:
+        Variables:
+          LISTS_TABLE_NAME: !Ref BestSellerListsTable
 
   # EventBridge Rule Integration for refreshing the available best seller lists
   ScheduledRefreshLists:
@@ -65,6 +71,17 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref BestSellerListsTable
+        - SSMParameterReadPolicy:
+            ParameterName: NYT-Api-Key
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/294e7db8-c5cd-47dc-8296-1ce27b629b44
+      Environment:
+        Variables:
+          LISTS_TABLE_NAME: !Ref BestSellerListsTable
+          SSM_PARAM_NAME: NYT-Api-Key
 
   # API Gateway Proxy Integration for GET /books?list={list}&date={date}
   #   Returns the "book of the day" for a given Best Seller list.
@@ -88,6 +105,9 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref BooksTable
+      Environment:
+        Variables:
+          BOOKS_TABLE_NAME: !Ref BooksTable
 
   # EventBridge Rule Integration for generating the random book for each list
   GenerateRandomBooks:
@@ -101,6 +121,17 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref BooksTable
+        - SSMParameterReadPolicy:
+            ParameterName: NYT-Api-Key
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/294e7db8-c5cd-47dc-8296-1ce27b629b44
+      Environment:
+        Variables:
+          BOOKS_TABLE_NAME: !Ref BooksTable
+          SSM_PARAM_NAME: NYT-Api-Key
 
   # End function of state machine that reads from the contact list,
   # pairs them with a book, and sends to SQS (BookEmailQueue).
@@ -133,6 +164,7 @@ Resources:
       Environment:
         Variables:
           CONTACT_LIST_NAME: jtaylorsoftwareContactList
+          CONFIGURATION_SET: BooksListConfigSet
           TOPIC_NAME: Books
 
   # HTTP API for access to public endpoints
@@ -281,7 +313,7 @@ Resources:
     Properties:
       Description: "Scheduled lists refresh"
       Name: RefreshListsEvent
-      ScheduleExpression: "cron(0 0/12 * * ? *)" # Every 12 hours every day
+      ScheduleExpression: "cron(59 23 ? * 1 *)" # Every Sunday 11:59PM UTC+0
       State: ENABLED
       Targets:
         - Arn: !GetAtt ScheduledRefreshLists.Arn
