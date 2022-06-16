@@ -110,8 +110,8 @@ func (h *Handler) RefreshBestSellerLists() error {
 		time.Sleep(backoff)
 		backoff *= 2
 		unprocessed, err = h.batchWriteRequests(unprocessed)
-		var pte types.ProvisionedThroughputExceededException
-		if !errors.Is(err, &pte) {
+		var pte *types.ProvisionedThroughputExceededException
+		if !errors.As(err, &pte) {
 			return err
 		}
 	}
