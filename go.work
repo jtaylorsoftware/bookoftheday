@@ -7,4 +7,5 @@ use (
 	./handlers/random-book
 	./handlers/refresh-lists
 	./handlers/subscribe
+	./types
 )

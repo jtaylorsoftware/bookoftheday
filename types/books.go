@@ -1,6 +1,5 @@
-// Package books provides methods to access the NYT Books API and methods to
-// persist Best-Seller lists to DynamoDB tables.
-package books
+// Package types provides common data types for querying and storing books.
+package types
 
 // BestSellerList models a single Best-Seller books list.
 type BestSellerList struct {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"refresh-lists/internal/books"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -12,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/go-cmp/cmp"
 	fuzz "github.com/google/gofuzz"
+
+	books "bookoftheday/types"
 )
 
 type fakeBooksAPI struct {

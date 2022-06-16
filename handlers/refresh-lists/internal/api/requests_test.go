@@ -1,4 +1,4 @@
-package books
+package api
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"bookoftheday/types"
 )
 
 func TestRequests(t *testing.T) {
@@ -57,8 +59,8 @@ func TestRequests(t *testing.T) {
 			t.Fatalf("got non-nil error; expected to succeed")
 		}
 
-		want := make([]BestSellerList, 1)
-		want[0] = BestSellerList{
+		want := make([]types.BestSellerList, 1)
+		want[0] = types.BestSellerList{
 			Name:                "Fiction",
 			DisplayName:         "Fiction",
 			EncodedName:         "fiction",

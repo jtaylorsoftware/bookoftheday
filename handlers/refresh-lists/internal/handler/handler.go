@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"refresh-lists/internal/books"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	books "bookoftheday/types"
 )
 
 // BooksAPI enables requests to the NYT Books API.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
-	"refresh-lists/internal/books"
+	"refresh-lists/internal/api"
 	"refresh-lists/internal/handler"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -33,7 +33,7 @@ func main() {
 		log.Fatalln("could not get SSM parameter: " + err.Error())
 	}
 
-	api := books.NewNYTBooksAPI(*gpOutput.Parameter.Value, "https://api.nytimes.com/svc/books/v3/lists/names.json")
+	api := api.NewNYTBooksAPI(*gpOutput.Parameter.Value, "https://api.nytimes.com/svc/books/v3/lists/names.json")
 
 	ddbClient := dynamodb.NewFromConfig(cfg)
 

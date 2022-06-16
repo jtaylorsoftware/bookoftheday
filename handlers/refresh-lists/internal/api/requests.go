@@ -1,10 +1,14 @@
-package books
+// Package api provides methods to access the NYT Books API and methods to
+// persist Best-Seller lists to DynamoDB tables.
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+
+	"bookoftheday/types"
 )
 
 // NYTBooksAPI provides methods to query the NYT books API.
@@ -19,15 +23,15 @@ func NewNYTBooksAPI(key, endpoint string) *NYTBooksAPI {
 }
 
 type getListNamesResponse struct {
-	Status     string           `json:"status"`
-	Copyright  string           `json:"copyright"`
-	NumResults int              `json:"num_results"`
-	Results    []BestSellerList `json:"results"`
+	Status     string                 `json:"status"`
+	Copyright  string                 `json:"copyright"`
+	NumResults int                    `json:"num_results"`
+	Results    []types.BestSellerList `json:"results"`
 }
 
 // GetBestSellerListNames fetches the list of Best-Seller lists from the NYT
 // books API.
-func (api *NYTBooksAPI) GetBestSellerListNames() ([]BestSellerList, error) {
+func (api *NYTBooksAPI) GetBestSellerListNames() ([]types.BestSellerList, error) {
 	resp, err := http.Get(
 		api.endpoint + "?api-key=" + api.key,
 	)
