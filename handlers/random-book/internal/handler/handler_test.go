@@ -81,21 +81,22 @@ func TestHandler(t *testing.T) {
 
 		b := bl.Books[0]
 		book := books.BestSellerBook{
-			ListEncodedName:  list,
-			Date:             time.Now().Format(ymdLayout),
-			ListDate:         bl.PublishedDate,
-			ListDisplayName:  bl.DisplayName,
-			ListUpdatePeriod: bl.Updated,
-			PrimaryISBN10:    b.PrimaryISBN10,
-			PrimaryISBN13:    b.PrimaryISBN13,
-			Title:            b.Title,
-			Author:           b.Author,
-			Publisher:        b.Publisher,
-			Rank:             b.Rank,
-			AmazonProductURL: b.AmazonProductURL,
-			ImageURL:         b.ImageURL,
-			ImageWidth:       b.ImageWidth,
-			ImageHeight:      b.ImageHeight,
+			ListEncodedName:   list,
+			DateSelected:      time.Now().Format(ymdLayout),
+			ListPublishedDate: bl.PublishedDate,
+			ListDisplayName:   bl.DisplayName,
+			ListUpdatePeriod:  bl.Updated,
+			PrimaryISBN10:     b.PrimaryISBN10,
+			PrimaryISBN13:     b.PrimaryISBN13,
+			Title:             b.Title,
+			Author:            b.Author,
+			Publisher:         b.Publisher,
+			Description:       b.Description,
+			Rank:              b.Rank,
+			AmazonProductURL:  b.AmazonProductURL,
+			ImageURL:          b.ImageURL,
+			ImageWidth:        b.ImageWidth,
+			ImageHeight:       b.ImageHeight,
 		}
 		item, _ := attributevalue.MarshalMap(book)
 		input := &dynamodb.PutItemInput{

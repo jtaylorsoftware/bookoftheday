@@ -221,7 +221,7 @@ Resources:
         # Key Attributes
         - AttributeName: ListEncodedName
           AttributeType: S
-        - AttributeName: Date # Date book was randomly selected for email list
+        - AttributeName: DateSelected # Date book was randomly selected for email list
           AttributeType: S
         # The following Attributes are for documentation purposes:
         # - AttributeName: ListDisplayName
@@ -238,11 +238,13 @@ Resources:
         #   AttributeType: S
         # - AttributeName: Author
         #   AttributeType: S
+        # - AttributeName: Publisher
+        #   AttributeType: S
+        # - AttributeName: Description
+        #   AttributeType: S
         # - AttributeName: Rank
         #   AttributeType: "N"
         # - AttributeName: AmazonProductURL
-        #   AttributeType: S
-        # - AttributeName: Description
         #   AttributeType: S
         # - AttributeName: ImageURL
         #   AttributeType: S
@@ -255,8 +257,15 @@ Resources:
       KeySchema:
         - AttributeName: ListEncodedName
           KeyType: "HASH"
-        - AttributeName: Date
+        - AttributeName: DateSelected
           KeyType: "RANGE"
+      GlobalSecondaryIndexes:
+        - IndexName: DateSelectedIndex
+          KeySchema:
+            - AttributeName: DateSelected
+              KeyType: "HASH"
+          Projection:
+            ProjectionType: "ALL"
       TimeToLiveSpecification:
         AttributeName: Expiration
         Enabled: true

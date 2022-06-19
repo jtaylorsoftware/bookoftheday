@@ -13,20 +13,21 @@ type BestSellerList struct {
 
 // BestSellerBook models a single Best-Seller book.
 type BestSellerBook struct {
-	ListEncodedName  string `json:"list_encoded_name"`
-	Date             string `json:"date"`
-	ListDate         string `json:"list_published_date"`
-	ListDisplayName  string `json:"list_display_name"`
-	ListUpdatePeriod string `json:"list_update_period"`
-	PrimaryISBN10    string `json:"primary_isbn10"`
-	PrimaryISBN13    string `json:"primary_isbn13"`
-	Title            string `json:"title"`
-	Author           string `json:"author"`
-	Publisher        string `json:"publisher"`
-	Rank             int    `json:"rank"`
-	AmazonProductURL string `json:"amazon_product_url"`
-	ImageURL         string `json:"image_url"`
-	ImageWidth       int    `json:"image_width"`
-	ImageHeight      int    `json:"image_height"`
-	Expiration       int64  `json:"-"`
+	ListEncodedName   string `json:"list_encoded_name"`
+	DateSelected      string `json:"date_selected"`
+	ListPublishedDate string `json:"list_published_date"`
+	ListDisplayName   string `json:"list_display_name"`
+	ListUpdatePeriod  string `json:"list_update_period"`
+	PrimaryISBN10     string `json:"primary_isbn10"`
+	PrimaryISBN13     string `json:"primary_isbn13"`
+	Title             string `json:"title"`
+	Author            string `json:"author"`
+	Publisher         string `json:"publisher"`
+	Description       string `json:"description"`
+	Rank              int    `json:"rank"`
+	AmazonProductURL  string `json:"amazon_product_url"`
+	ImageURL          string `json:"image_url"`
+	ImageWidth        int    `json:"image_width"`
+	ImageHeight       int    `json:"image_height"`
+	Expiration        int64  `json:"-"`
 }
