@@ -6,6 +6,7 @@ use (
 	./handlers/lists
 	./handlers/random-book
 	./handlers/refresh-lists
+	./handlers/send-email
 	./handlers/subscribe
 	./types
 )

@@ -153,6 +153,27 @@ Resources:
                 - ses:ListContacts
               Resource:
                 - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:contact-list/jtaylorsoftwareContactList"
+      Environment:
+        Variables:
+          CONTACT_LIST_NAME: jtaylorsoftwareContactList
+
+  # Function which takes an input JSON list of contacts paired with the
+  # random book to send them and sends an email with the book.
+  SendEmailWithBook:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/send-email/
+      Handler: send-email
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            BatchSize: 10
+            Queue: !GetAtt BookEmailQueue.Arn
+      Policies:
         - Version: 2012-10-17
           Statement:
             - Effect: Allow
