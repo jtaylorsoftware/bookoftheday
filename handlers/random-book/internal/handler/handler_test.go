@@ -3,6 +3,7 @@ package handler
 import (
 	books "bookoftheday/types"
 	"context"
+	"math/rand"
 	"random-book/internal/api"
 	"regexp"
 	"testing"
@@ -105,7 +106,7 @@ func TestHandler(t *testing.T) {
 		}
 		mDDB := &mockDynamoDBPutItemAPI{t, input, nil}
 
-		h := New(mAPI, mDDB, TableName)
+		h := New(mAPI, mDDB, TableName, rand.New(rand.NewSource(1)))
 		now := time.Now().Unix()
 		got, err := h.GetRandomBestSellerBook(books.BestSellerList{
 			EncodedName:         list,

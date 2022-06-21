@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log"
+	"math/rand"
 	"os"
 	"random-book/internal/api"
 	"random-book/internal/handler"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -35,6 +37,8 @@ func main() {
 
 	ddbClient := dynamodb.NewFromConfig(cfg)
 
-	h := handler.New(api, ddbClient, os.Getenv("BOOKS_TABLE_NAME"))
+	s := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(s)
+	h := handler.New(api, ddbClient, os.Getenv("BOOKS_TABLE_NAME"), r)
 	lambda.Start(h.GetRandomBestSellerBook)
 }

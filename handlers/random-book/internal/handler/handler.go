@@ -32,21 +32,23 @@ type Handler struct {
 	api       GetBooksInBestSellerListAPI
 	ddb       DynamoDBPutItemAPI
 	tableName string
+	rng       *rand.Rand
 }
 
 // New creates an instance of Handler.
-func New(api GetBooksInBestSellerListAPI, ddb DynamoDBPutItemAPI, tableName string) *Handler {
+func New(api GetBooksInBestSellerListAPI, ddb DynamoDBPutItemAPI, tableName string, rng *rand.Rand) *Handler {
 	return &Handler{
 		api,
 		ddb,
 		tableName,
+		rng,
 	}
 }
 
 const ymdLayout = "2006-01-02"
 
 // getRandomDateBetween calculates a random yyyy-MM-dd date string between two dates with the same format.
-func getRandomDateBetween(oldest, newest string) (string, error) {
+func getRandomDateBetween(rng *rand.Rand, oldest, newest string) (string, error) {
 	o, err := time.Parse(ymdLayout, oldest)
 	if err != nil {
 		return "", fmt.Errorf("error parsing date to yyyy-MM-dd: %s", oldest)
@@ -57,14 +59,14 @@ func getRandomDateBetween(oldest, newest string) (string, error) {
 	}
 
 	days := int(math.Floor(n.Sub(o).Hours() / 24))
-	rd := rand.Intn(days)
+	rd := rng.Intn(days)
 	date := o.Add(time.Duration(rd) * time.Hour * 24).Format(ymdLayout)
 	return date, nil
 }
 
 // GetRandomBestSellerBook finds and persists a random book from a given Best-Seller List.
 func (h *Handler) GetRandomBestSellerBook(list books.BestSellerList) (books.BestSellerBook, error) {
-	date, err := getRandomDateBetween(list.OldestPublishedDate, list.NewestPublishedDate)
+	date, err := getRandomDateBetween(h.rng, list.OldestPublishedDate, list.NewestPublishedDate)
 	if err != nil {
 		return books.BestSellerBook{}, err
 	}
@@ -77,7 +79,7 @@ func (h *Handler) GetRandomBestSellerBook(list books.BestSellerList) (books.Best
 		return books.BestSellerBook{}, errors.New("books API returned empty list")
 	}
 
-	b := bl.Books[rand.Intn(len(bl.Books))]
+	b := bl.Books[h.rng.Intn(len(bl.Books))]
 	bsb := books.BestSellerBook{
 		ListEncodedName:   list.EncodedName,
 		DateSelected:      time.Now().Format(ymdLayout),
