@@ -389,7 +389,7 @@ Resources:
           - Effect: "Allow"
             Principal:
               Service:
-                - !Sub states.${AWS::Region}.amazonaws.com
+                - !Sub states.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: StateMachineExecutionPolicy
@@ -408,6 +408,14 @@ Resources:
                   - sqs:SendMessage
                 Resource:
                   - !GetAtt RandomBookDLQ.Arn
+              - Effect: "Allow"
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                Resource:
+                  - "*"
 
   StateMachine:
     Type: AWS::Serverless::StateMachine
