@@ -30,6 +30,18 @@ func (m *mockSESv2CreateContactAPI) CreateContact(
 	if params.ContactListName == nil || len(*params.ContactListName) == 0 {
 		m.Error("got empty or nil string for params.ContactListName")
 	}
+	if len(params.TopicPreferences) == 0 {
+		m.Error("got empty list for params.TopicPreferences")
+	} else {
+		for i, tp := range params.TopicPreferences {
+			if tp.TopicName == nil || len(*tp.TopicName) == 0 {
+				m.Errorf("got empty or nil string for topic pref %d", i)
+			}
+			if tp.SubscriptionStatus != types.SubscriptionStatusOptIn {
+				m.Errorf("incorrect subscription status for %s: got OPT_OUT; expected OPT_IN", *tp.TopicName)
+			}
+		}
+	}
 	return &sesv2.CreateContactOutput{}, m.apiError
 }
 

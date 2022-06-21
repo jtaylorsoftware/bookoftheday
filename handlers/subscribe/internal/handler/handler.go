@@ -45,7 +45,7 @@ func (h *Handler) Subscribe(req events.APIGatewayV2HTTPRequest) (events.APIGatew
 		TopicPreferences: []types.TopicPreference{
 			{
 				TopicName:          aws.String("Books"),
-				SubscriptionStatus: types.SubscriptionStatusOptOut,
+				SubscriptionStatus: types.SubscriptionStatusOptIn,
 			},
 		},
 	})
