@@ -31,3 +31,9 @@ type BestSellerBook struct {
 	ImageHeight       int    `json:"image_height"`
 	Expiration        int64  `json:"-"`
 }
+
+// BookItemKey contains the primary key data for a BestSellerBook item.
+type BookItemKey struct {
+	ListEncodedName string `json:"list_encoded_name"`
+	DateSelected    string `json:"date_selected"`
+}
