@@ -4,44 +4,42 @@ StartAt: GetLists
 States:
   GetLists:
     Type: Task
-    Resource: ${GetListsFunction}
+    Resource: '${GetListsFunction}'
     Retry:
       - ErrorEquals:
-          - Lambda.ServiceException
-          - Lambda.AWSLambdaException
-          - Lambda.SdkClientException 
-          - Lambda.Unknown
+          - States.ALL
         IntervalSeconds: 2
         MaxAttempts: 2
         BackoffRate: 2
     Next: MapListToBook
   MapListToBook:
     Type: Map
+    MaxConcurrency: 1
+    InputPath: $.lists
     Iterator:
       StartAt: GetRandomBook
       States:
         GetRandomBook:
           Type: Task
-          Resource: ${RandomBookFunction}
+          Resource: '${RandomBookFunction}'
           Retry:
             - ErrorEquals:
-                - Lambda.ServiceException
-                - Lambda.AWSLambdaException
-                - Lambda.SdkClientException
-                - Lambda.Unknown
-              IntervalSeconds: 5
-              MaxAttempts: 2
-              BackoffRate: 2
+                - States.ALL
+              IntervalSeconds: 6
+              MaxAttempts: 3
+              BackoffRate: 2.5
               Comment: Retry getting book on errors
           Catch:
             - ErrorEquals:
-                - Lambda.Unknown
-                - Lambda.ServiceException
-                - Lambda.SdkClientException
-                - Lambda.AWSLambdaException
+                - States.ALL
               Comment: Send list to DLQ if retry impossible
               Next: SendToBookDLQ
+              ResultPath: $.error
           TimeoutSeconds: 10
+          Next: WaitRequestLimit
+        WaitRequestLimit:
+          Type: Wait
+          Seconds: 7
           End: true
         SendToBookDLQ:
           Type: Task
@@ -51,16 +49,12 @@ States:
             QueueUrl: '${BookDLQURL}'
           End: true
     Next: ReadContacts
-    MaxConcurrency: 5
   ReadContacts:
     Type: Task
-    Resource: ${ReadContactsFunction}
+    Resource: '${ReadContactsFunction}'
     Retry:
       - ErrorEquals:
-          - Lambda.ServiceException
-          - Lambda.AWSLambdaException
-          - Lambda.SdkClientException
-          - Lambda.Unknown
+          - States.ALL
         IntervalSeconds: 5
         MaxAttempts: 2
         BackoffRate: 2
