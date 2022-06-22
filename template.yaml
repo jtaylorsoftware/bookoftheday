@@ -133,8 +133,8 @@ Resources:
           BOOKS_TABLE_NAME: !Ref BooksTable
           SSM_PARAM_NAME: NYT-Api-Key
 
-  # End function of state machine that reads from the contact list,
-  # pairs them with a book, and sends to SQS (BookEmailQueue).
+  # Function that expects an input list of Best-Seller books and will get all contacts,
+  # pair them with a random book and then send it to an SQS queue (SendEmailQueue).
   ReadContacts:
     Type: AWS::Serverless::Function
     Properties:
@@ -145,7 +145,7 @@ Resources:
         - x86_64
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !GetAtt BookEmailQueue.QueueName
+            QueueName: !GetAtt SendEmailQueue.QueueName
         - Version: 2012-10-17
           Statement:
             - Effect: Allow
@@ -156,9 +156,14 @@ Resources:
       Environment:
         Variables:
           CONTACT_LIST_NAME: jtaylorsoftwareContactList
+          EMAIL_QUEUE_URL: !Ref SendEmailQueue
 
-  # Function which takes an input JSON list of contacts paired with the
-  # random book to send them and sends an email with the book.
+  # Function which sends an email for every contact in an SQS queue.
+  # Expects message body to be JSON:
+  # {
+  #   "contact_email": "email@example.com",
+  #   "book": <types.BestSellerBook>
+  # }
   SendEmailWithBook:
     Type: AWS::Serverless::Function
     Properties:
@@ -172,7 +177,11 @@ Resources:
           Type: SQS
           Properties:
             BatchSize: 10
-            Queue: !GetAtt BookEmailQueue.Arn
+            Queue: !GetAtt SendEmailQueue.Arn
+            # Seems to work, despite not being documented. Build & deploy both work, shows up in mgmt console.
+            # See: https://github.com/aws/serverless-application-model/issues/2256
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
       Policies:
         - Version: 2012-10-17
           Statement:
@@ -182,15 +191,17 @@ Resources:
               Resource:
                 - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*"
                 - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/BooksListConfigSet"
+                - !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:contact-list/jtaylorsoftwareContactList"
       Environment:
         Variables:
+          FROM_EMAIL_ADDR: "jtaylorsoftware <mailing.list@books.jtaylorsoftware.com>"
           CONTACT_LIST_NAME: jtaylorsoftwareContactList
           CONFIGURATION_SET: BooksListConfigSet
           TOPIC_NAME: Books
 
   # HTTP API for access to public endpoints
   # - PUT /subscribe
-  # - GET /books?list={list}
+  # - GET /books
   # - GET /lists
   PublicHttpApi:
     Type: AWS::Serverless::HttpApi
@@ -295,11 +306,26 @@ Resources:
           Value: BookOfTheDay
 
   # Queue that will be sent payloads containing a contact and their book
-  BookEmailQueue:
+  SendEmailQueue:
     Type: AWS::SQS::Queue
     DeletionPolicy: Retain
     Properties:
-      QueueName: BookEmailQueue
+      QueueName: SendEmailQueue
+      #DelaySeconds: 600
+      KmsMasterKeyId: alias/aws/sqs
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SendEmailDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: App
+          Value: BookOfTheDay
+
+  # DLQ for when sending an email fails
+  SendEmailDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    Properties:
+      QueueName: SendEmailDLQ
       KmsMasterKeyId: alias/aws/sqs
       Tags:
         - Key: App
@@ -363,17 +389,6 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       QueueName: RandomBookDLQ
-      KmsMasterKeyId: alias/aws/sqs
-      Tags:
-        - Key: App
-          Value: BookOfTheDay
-
-  # DLQ for when sending an email fails
-  SendEmailDLQ:
-    Type: AWS::SQS::Queue
-    DeletionPolicy: Retain
-    Properties:
-      QueueName: SendEmailDLQ
       KmsMasterKeyId: alias/aws/sqs
       Tags:
         - Key: App

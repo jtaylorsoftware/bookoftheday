@@ -37,3 +37,11 @@ type BookItemKey struct {
 	ListEncodedName string `json:"list_encoded_name"`
 	DateSelected    string `json:"date_selected"`
 }
+
+// SQSBookMessageBody models the SQS MessageBody data sent by the
+// contacts Lambda for consumption by the send-email Lambda. The
+// send-email Lambda can unmarshal records into this value.
+type SQSBookMessageBody struct {
+	ContactEmail string         `json:"contact_email"`
+	Book         BestSellerBook `json:"book"`
+}
